@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PIL import Image
-
+from pathlib import Path
 from models import SteganographyReport
 
 
@@ -49,6 +49,11 @@ def _extract_null_terminated_text(blob: bytes) -> str | None:
     cleaned = "".join(char for char in decoded if char.isprintable() or char in "\r\n\t")
     return cleaned.strip() or None
 
+def find_pgp(image_path : str)->str|None:
+    path = Path(image_path)
+    raw = path.read_bytes()
+    text = raw.decode("latin-1", errors="ignore")
+    return _extract_pgp_block(text)
 
 def _extract_pgp_block(text: str) -> str | None:
     # Extract only the armored PGP block when hidden text contains extra noise.
@@ -67,6 +72,15 @@ def _extract_pgp_block(text: str) -> str | None:
 
 
 def analyze_steganography(image_path: str) -> SteganographyReport:
+
+    pgp= find_pgp(image_path)
+    if pgp:
+         return SteganographyReport(
+            file_path=image_path,
+            hidden_text=pgp,
+            detected_format="PGP block",
+        )
+
     lsb_bytes = extract_lsb_bytes(image_path)
 
     text = _extract_null_terminated_text(lsb_bytes)
